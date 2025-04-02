@@ -1,20 +1,20 @@
 # Uncomment the required imports before adding the code
-
-# from django.shortcuts import render
-# from django.http import HttpResponseRedirect, HttpResponse
-# from django.contrib.auth.models import User
-# from django.shortcuts import get_object_or_404, render, redirect
-# from django.contrib.auth import logout
-# from django.contrib import messages
-# from datetime import datetime
+from django.shortcuts import render
+from django.http import HttpResponseRedirect, HttpResponse
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib.auth import logout
+from django.contrib import messages
+from datetime import datetime
 
 from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
 import logging
 import json
 from django.views.decorators.csrf import csrf_exempt
-# from .populate import initiate
-
+from .populate import initiate
+from django.contrib.auth import logout
+from django.http import JsonResponse
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -41,11 +41,45 @@ def login_user(request):
 # Create a `logout_request` view to handle sign out request
 # def logout_request(request):
 # ...
-
+def logout_user(request):
+    logout(request)
+    return JsonResponse({"message": "Logged out successfully"})
 # Create a `registration` view to handle sign up request
 # @csrf_exempt
 # def registration(request):
 # ...
+@csrf_exempt
+def registration(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            username = data.get("userName")
+            password = data.get("password")
+            first_name = data.get("firstName")
+            last_name = data.get("lastName")
+            email = data.get("email")
+
+            # Verificar si el usuario ya existe
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({"userName": username, "error": "Already Registered"}, status=400)
+
+            # Crear usuario
+            user = User.objects.create_user(
+                username=username, first_name=first_name, last_name=last_name,
+                password=password, email=email
+            )
+            
+            # Iniciar sesión automáticamente después del registro
+            login(request, user)
+
+            return JsonResponse({"userName": username, "status": "Authenticated"}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
 
 # # Update the `get_dealerships` view to render the index page with
 # a list of dealerships
